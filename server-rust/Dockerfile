@@ -30,7 +30,6 @@ RUN useradd -m appuser
 USER appuser
 
 EXPOSE 8787
-ENV PORT=8787
 ENV DEFAULT_PROVIDER=gemini
 
 CMD ["/app/brand_voice_ai_server"]
