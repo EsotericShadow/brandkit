@@ -25,7 +25,8 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("Boot: loading .env and reading configuration");
     dotenvy::dotenv().ok();
-    let port: u16 = std::env::var("PORT").ok().and_then(|s| s.parse().ok()).unwrap_or(8787);
+    // On Render Docker, default expected port is 10000 if $PORT is not set
+    let port: u16 = std::env::var("PORT").ok().and_then(|s| s.parse().ok()).unwrap_or(10000);
     let provider_raw = std::env::var("DEFAULT_PROVIDER").unwrap_or_else(|_| "gemini".to_string());
     let provider = Provider::from_str(&provider_raw).unwrap_or(Provider::Gemini);
     let has_gemini_key = std::env::var("GEMINI_API_KEY").ok().map(|k| !k.is_empty()).unwrap_or(false);

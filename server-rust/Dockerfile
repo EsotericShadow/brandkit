@@ -29,7 +29,7 @@ COPY --from=builder /app/target/release/brand_voice_ai_server /app/brand_voice_a
 RUN useradd -m appuser
 USER appuser
 
-EXPOSE 8787
+EXPOSE 10000
 ENV DEFAULT_PROVIDER=gemini
 
 CMD ["/app/brand_voice_ai_server"]
