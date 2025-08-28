@@ -18,7 +18,24 @@ pub struct AppState {
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() {
+    if let Err(e) = run().await {
+        eprintln!("[FATAL] startup error: {e:?}");
+        let hint = std::env::var("RUST_BACKTRACE").unwrap_or_default();
+        if hint != "0" { eprintln!("[HINT] Set RUST_BACKTRACE=1 for backtraces"); }
+        // Give logs a moment to flush on container platforms
+        tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+        std::process::exit(1);
+    }
+}
+
+async fn run() -> anyhow::Result<()> {
+    // Panic hook to ensure panics are visible in logs
+    let _ = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|info| {
+        eprintln!("[PANIC] {}", info);
+    }));
+
     // logging
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
     fmt().with_env_filter(filter).init();

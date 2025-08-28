@@ -5,10 +5,12 @@ use tokio::time::{timeout, Duration};
 use axum::http::StatusCode;
 
 pub async fn health() -> Json<serde_json::Value> {
+    tracing::info!("health: ok");
     Json(json!({"ok": true}))
 }
 
 pub async fn generate_guide(State(state): State<AppState>, Json(payload): Json<GenerateGuideRequest>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    tracing::info!("generate_guide: received request");
     let prompt = prompts::build_guide_prompt(&payload.inputs);
 let schema = crate::adapters::schemas::guide_schema();
     let data = state.adapter.generate_json(&prompt, Some(schema), Some(0.6)).await.map_err(internal_err)?;
@@ -40,12 +42,14 @@ let schema = crate::adapters::schemas::guide_schema();
 }
 
 pub async fn rewrite_text(State(state): State<AppState>, Json(payload): Json<RewriteRequest>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    tracing::info!("rewrite_text: received request, text_len={} chars", payload.textToRewrite.len());
     let sys = prompts::build_rewrite_system(&payload.brandGuide, payload.options.as_ref());
     let text = state.adapter.generate_text(&payload.textToRewrite, Some(&sys), Some(0.6)).await.map_err(internal_err)?;
     Ok(Json(json!({"text": text})))
 }
 
 pub async fn check_consistency(State(state): State<AppState>, Json(payload): Json<ConsistencyRequest>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    tracing::info!("check_consistency: received request, text_len={} chars", payload.textToCheck.len());
     let prompt = prompts::build_consistency_prompt(&payload.textToCheck, &payload.brandGuide);
 let schema = crate::adapters::schemas::consistency_schema();
     let data = state.adapter.generate_json(&prompt, Some(schema), Some(0.3)).await.map_err(internal_err)?;
@@ -66,6 +70,7 @@ pub async fn suggest_palette(
     Query(q): Query<PaletteQuery>,
     Json(inputs): Json<UserInputs>
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    tracing::info!("suggest_palette: request received, brand='{}'", inputs.brandName);
     // Determine desired roles: from query ?roles=..., otherwise from user inputs or sensible defaults
     let roles: Vec<String> = if let Some(r) = q.roles.as_ref() {
         r.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
