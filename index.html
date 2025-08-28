@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Brand Voice AI Stylist</title>
+    <!-- Use Tailwind via CDN for simplicity; local PostCSS setup is optional. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @keyframes slide-in-from-right {
+        0% { transform: translateX(30px); opacity: 0; }
+        100% { transform: translateX(0); opacity: 1; }
+      }
+      .animate-slide-in {
+        animation: slide-in-from-right 0.4s ease-out forwards;
+      }
+      :root { color-scheme: light dark; }
+    </style>
+  </head>
+  <body class="bg-white dark:bg-neutral-950">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
