@@ -4,17 +4,8 @@
 FROM rust:1.87-slim AS builder
 WORKDIR /app
 
-# Cache dependencies
-COPY server-rust/Cargo.toml server-rust/Cargo.lock ./
-# Create a dummy src so build deps can be cached
-RUN mkdir -p src && echo "fn main(){}" > src/main.rs && \
-    cargo build --release || true
-
-# Now copy the real source
-RUN rm -rf src
-COPY server-rust/src ./src
-
-# Build the real binary
+# Copy full crate source and build
+COPY server-rust/ .
 RUN cargo build --release
 
 # --- Runtime stage ---
