@@ -16,7 +16,6 @@ impl GeminiAdapter {
         let http = Client::builder()
             .pool_max_idle_per_host(8)
             .tcp_keepalive(Some(Duration::from_secs(30)))
-            .http2_adaptive_window(true)
             .timeout(Duration::from_millis(timeout_ms))
             .build()
             .unwrap_or_else(|_| Client::new());
