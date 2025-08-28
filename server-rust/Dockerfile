@@ -25,12 +25,14 @@ WORKDIR /app
 # Copy the binary from the builder
 COPY --from=builder /app/target/release/brand_voice_ai_server /app/brand_voice_ai_server
 
-# Unprivileged user
-RUN useradd -m appuser
+# Add startup wrapper to print env/PORT then exec server (helps Render runtime logs)
+COPY server-rust/start.sh /app/start.sh
+RUN chmod +x /app/start.sh && useradd -m appuser && chown -R appuser:appuser /app
+
 USER appuser
 
 EXPOSE 10000
 ENV DEFAULT_PROVIDER=gemini
 
-CMD ["/app/brand_voice_ai_server"]
+ENTRYPOINT ["/app/start.sh"]
 
