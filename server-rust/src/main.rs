@@ -51,7 +51,7 @@ async fn main() -> anyhow::Result<()> {
         .with_state(state)
         .layer(cors);
 
-    let addr = SocketAddr::from(([127,0,0,1], port));
+    let addr = SocketAddr::from(([0,0,0,0], port));
     tracing::info!("Boot: binding listener on http://{}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!("Rust AI server listening on http://{}", addr);
