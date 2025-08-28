@@ -14,6 +14,14 @@ else
   printf "[ENTRYPOINT] PORT=%s\n" "$PORT"
 fi
 
-printf "[ENTRYPOINT] exec /app/brand_voice_ai_server\n"
-exec /app/brand_voice_ai_server
+printf "[ENTRYPOINT] ls -l /app\n"
+ls -l /app || true
+
+printf "[ENTRYPOINT] launching server...\n"
+/app/brand_voice_ai_server
+status=$?
+printf "[ENTRYPOINT] server exited with status %s\n" "$status"
+# small delay to ensure logs flush before container exits
+sleep 1
+exit "$status"
 
