@@ -1,0 +1,5 @@
+{
+  "name": "Brand Voice AI Stylist",
+  "description": "An AI-powered application to help users define, refine, and maintain a consistent brand voice. It generates a comprehensive brand style guide, offers font pairings, checks color contrast, and provides a tool to rewrite copy to match the defined brand voice.",
+  "requestFramePermissions": []
+}

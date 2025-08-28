@@ -1,0 +1,40 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Env files (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+.npmrc
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build output
+/dist/
+/.next/
+/.output/
+/.vercel/
+.next
+out/
+
+# Testing / coverage
+coverage/
+
+# Tooling caches
+.turbo/
+.cache/
+
+# IDE/editor
+.vscode/
+.idea/
+*.swp
+
+# Rust (server-rust)
+server-rust/target/
+

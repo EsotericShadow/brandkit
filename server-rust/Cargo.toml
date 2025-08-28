@@ -1,0 +1,29 @@
+[package]
+name = "brand_voice_ai_server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.7", features = ["macros", "json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.38", features = ["macros", "rt-multi-thread"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+thiserror = "1.0"
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "gzip", "brotli", "deflate"] }
+dotenvy = "0.15"
+tower-http = { version = "0.5", features = ["cors"] }
+anyhow = "1.0"
+async-trait = "0.1"
+lru = "0.12"
+
+aide = { version = "0.13", optional = true }
+
+[[bin]]
+name = "brand_voice_ai_server"
+path = "src/main.rs"
+
+[features]
+default = []
+
