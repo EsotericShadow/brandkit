@@ -5,7 +5,164 @@ import EditableSection from '../common/EditableSection_vrf';
 import SuggestedFonts from '../SuggestedFonts_vrf';
 import { assetsFor, googleFontsSpecimenUrl } from '../../data/fonts_vrf';
 import ColorSwatch from './ColorSwatch_vrf';
+import GuidePalette from './GuidePalette_vrf';
+import SectionBlock from './SectionBlock_vrf';
+import GuideTOC from './GuideTOC_vrf';
+import GuideLogo from './GuideLogo_vrf';
 import type { BrandGuide, Palette } from '../../types';
+
+// Per-section editing wrappers
+const PaletteSection: React.FC<{ palette: Palette; onChange: (name: keyof Palette, hex: string) => void }> = ({ palette, onChange }) => {
+  const [editing, setEditing] = React.useState(false);
+  return (
+    <div>
+      <div className="flex justify-end mb-2">
+        <div className="flex gap-2">
+          <button onClick={()=> setEditing(e=>!e)} className="px-3 py-1 rounded-md text-xs font-semibold bg-neutral-200 dark:bg-neutral-800">
+            {editing ? 'Done' : 'Edit'}
+          </button>
+        </div>
+      </div>
+      <GuidePalette palette={palette} isEditing={editing} onChange={onChange} />
+    </div>
+  );
+};
+
+const TextSection: React.FC<{ value: string; rows?: number; onSave: (v: string) => void }> = ({ value, rows=6, onSave }) => {
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(value);
+  React.useEffect(()=> setDraft(value), [value]);
+  return (
+    <div>
+      <div className="flex justify-end mb-2">
+        {editing ? (
+          <div className="flex gap-2">
+            <button onClick={()=> { setDraft(value); setEditing(false); }} className="px-3 py-1 rounded-md text-xs font-semibold bg-neutral-200 dark:bg-neutral-800">Cancel</button>
+            <button onClick={()=> { onSave(draft); setEditing(false); }} className="px-3 py-1 rounded-md text-xs font-semibold bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900">Save</button>
+          </div>
+        ) : (
+          <button onClick={()=> setEditing(true)} className="px-3 py-1 rounded-md text-xs font-semibold bg-neutral-200 dark:bg-neutral-800">Edit</button>
+        )}
+      </div>
+      <EditableSection title="" content={draft} onChange={setDraft} isEditing={editing} rows={rows} />
+    </div>
+  );
+};
+
+const MissionSection: React.FC<{ value: string; onSave: (v:string)=>void }> = ({ value, onSave }) => (
+  <TextSection value={value} onSave={onSave} rows={6} />
+);
+const PitchSection: React.FC<{ value: string; onSave: (v:string)=>void }> = ({ value, onSave }) => (
+  <TextSection value={value} onSave={onSave} rows={6} />
+);
+const AudienceSection: React.FC<{ value: string; onSave: (v:string)=>void }> = ({ value, onSave }) => (
+  <TextSection value={value} onSave={onSave} rows={6} />
+);
+const ToneSection: React.FC<{ value: string; onSave: (v:string)=>void }> = ({ value, onSave }) => (
+  <TextSection value={value} onSave={onSave} rows={8} />
+);
+
+const DosDontsSection: React.FC<{ dos: string[]; donts: string[]; onSave: (next: { dos: string[]; donts: string[] }) => void }> = ({ dos, donts, onSave }) => {
+  const [editing, setEditing] = React.useState(false);
+  const [dosDraft, setDosDraft] = React.useState<string[]>(dos);
+  const [dontsDraft, setDontsDraft] = React.useState<string[]>(donts);
+  React.useEffect(()=> { setDosDraft(dos); setDontsDraft(donts); }, [dos, donts]);
+  return (
+    <div>
+      <div className="flex justify-end mb-2">
+        {editing ? (
+          <div className="flex gap-2">
+            <button onClick={()=> { setDosDraft(dos); setDontsDraft(donts); setEditing(false); }} className="px-3 py-1 rounded-md text-xs font-semibold bg-neutral-200 dark:bg-neutral-800">Cancel</button>
+            <button onClick={()=> { onSave({ dos: dosDraft, donts: dontsDraft }); setEditing(false); }} className="px-3 py-1 rounded-md text-xs font-semibold bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900">Save</button>
+          </div>
+        ) : (
+          <button onClick={()=> setEditing(true)} className="px-3 py-1 rounded-md text-xs font-semibold bg-neutral-200 dark:bg-neutral-800">Edit</button>
+        )}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <h4 className="font-semibold text-neutral-800 dark:text-neutral-200">Dos</h4>
+          </div>
+          <div className="space-y-2">
+            {(editing ? dosDraft : dos).map((item, i) => (
+              editing ? (
+                <textarea key={i} value={dosDraft[i]} onChange={e=>{
+                  const next = [...dosDraft]; next[i] = e.target.value; setDosDraft(next);
+                }} rows={2} className="w-full p-2 bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm" />
+              ) : (
+                <p key={i} className="p-2 bg-neutral-100 dark:bg-neutral-900 rounded-md text-sm text-neutral-600 dark:text-neutral-300">{item}</p>
+              )
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <h4 className="font-semibold text-neutral-800 dark:text-neutral-200">Don'ts</h4>
+          </div>
+          <div className="space-y-2">
+            {(editing ? dontsDraft : donts).map((item, i) => (
+              editing ? (
+                <textarea key={i} value={dontsDraft[i]} onChange={e=>{
+                  const next = [...dontsDraft]; next[i] = e.target.value; setDontsDraft(next);
+                }} rows={2} className="w-full p-2 bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm" />
+              ) : (
+                <p key={i} className="p-2 bg-neutral-100 dark:bg-neutral-900 rounded-md text-sm text-neutral-600 dark:text-neutral-300">{item}</p>
+              )
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const TaglinesSection: React.FC<{ items: { tagline: string; rationale: string }[]; onSave: (items: { tagline: string; rationale: string }[]) => void }> = ({ items, onSave }) => {
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(items);
+  React.useEffect(()=> setDraft(items), [items]);
+  return (
+    <div>
+      <div className="flex justify-end mb-2">
+        {editing ? (
+          <div className="flex gap-2">
+            <button onClick={()=> { setDraft(items); setEditing(false); }} className="px-3 py-1 rounded-md text-xs font-semibold bg-neutral-200 dark:bg-neutral-800">Cancel</button>
+            <button onClick={()=> { onSave(draft); setEditing(false); }} className="px-3 py-1 rounded-md text-xs font-semibold bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900">Save</button>
+          </div>
+        ) : (
+          <button onClick={()=> setEditing(true)} className="px-3 py-1 rounded-md text-xs font-semibold bg-neutral-200 dark:bg-neutral-800">Edit</button>
+        )}
+      </div>
+      <div className="space-y-4">
+        {(editing ? draft : items).map((item, i) => (
+          <div key={i}>
+            {editing ? (
+              <div className="space-y-2 p-4 border border-neutral-200 dark:border-neutral-800 rounded-lg">
+                <input type="text" value={draft[i].tagline} onChange={e=>{
+                  const next = [...draft]; next[i] = { ...next[i], tagline: e.target.value }; setDraft(next);
+                }} className="w-full p-2 bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-md font-semibold" />
+                <textarea value={draft[i].rationale} onChange={e=>{
+                  const next = [...draft]; next[i] = { ...next[i], rationale: e.target.value }; setDraft(next);
+                }} rows={2} className="w-full p-2 bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm" placeholder="Rationale..." />
+              </div>
+            ) : (
+              <div className="p-4 bg-neutral-100 dark:bg-neutral-900 rounded-md">
+                <p className="font-semibold text-neutral-900 dark:text-neutral-100">"{item.tagline}"</p>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1"><span className="font-medium">Rationale:</span> {item.rationale}</p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 interface Props {
   guide: BrandGuide;
@@ -37,114 +194,96 @@ const GuideView: React.FC<Props> = ({
   handleDosAndDontsChange,
 }) => {
   const [editingFontIdx, setEditingFontIdx] = React.useState<number | null>(null);
+
+  const palette = (guide?.palette || {}) as any;
+  const quickChips: Array<{ label: string; hex?: string }> = [
+    { label: 'Primary', hex: palette.primary },
+    { label: 'Accent', hex: palette.accent },
+    { label: 'Background', hex: palette.background },
+    { label: 'Text', hex: palette.text },
+    { label: 'Link', hex: palette.link },
+  ];
+
+  const sections = [
+    { id: 'logo', title: 'Logo' },
+    { id: 'palette', title: 'Color Palette' },
+    { id: 'mission', title: 'Mission' },
+    { id: 'pitch', title: 'Elevator Pitch' },
+    { id: 'audience', title: 'Audience' },
+    { id: 'tone', title: 'Tone & Voice' },
+    { id: 'dosdonts', title: "Dos and Don'ts" },
+    { id: 'fonts', title: 'Brand Fonts' },
+    { id: 'suggested-fonts', title: 'Suggested Fonts' },
+    { id: 'taglines', title: 'Taglines' },
+  ];
+
   return (
-    <div className="animate-slide-in space-y-6">
-      <Card>
-        <div className="mb-6 pb-4 border-b border-neutral-200 dark:border-neutral-800">
-          <div className="flex flex-wrap justify-between items-start gap-4">
-            <div>
-              {guide.logoUrl && <img src={guide.logoUrl} alt={`${guide.brandName} Logo`} className="max-h-12 mb-2" />}
-              <h1 className="text-3xl font-extrabold text-neutral-900 dark:text-white">{guide.brandName} Style Guide</h1>
-              <p className="text-neutral-500 dark:text-neutral-400">{guide.industry}</p>
+    <div className="animate-slide-in">
+      {/* Header */}
+      <div className="mb-6 pb-4 border-b border-neutral-200 dark:border-neutral-800">
+        <div className="flex flex-wrap justify-between items-start gap-4">
+          <div>
+            {guide.logoUrl && <img src={guide.logoUrl} alt={`${guide.brandName} Logo`} className="max-h-16 mb-2 object-contain" />}
+            <h1 className="text-3xl font-extrabold text-neutral-900 dark:text-white">{guide.brandName} Style Guide</h1>
+            <p className="text-neutral-500 dark:text-neutral-400">{guide.industry}</p>
+            {/* Quick palette summary */}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {quickChips.map((c) => (
+                <div key={c.label} className="flex items-center gap-1 text-xs">
+                  <span className="inline-block w-4 h-4 rounded-sm border border-neutral-300 dark:border-neutral-700" style={{ backgroundColor: c.hex || '#e5e7eb' }} />
+                  <span className="text-neutral-600 dark:text-neutral-300">{c.label}</span>
+                </div>
+              ))}
             </div>
-            <div className="flex gap-2 self-start flex-shrink-0">
-              {isEditing ? (
-                <>
-                  <Button onClick={onCancelClick} variant="secondary">Cancel</Button>
-                  <Button onClick={onSaveClick}>Save</Button>
-                </>
-              ) : (
-                <>
-                  <Button onClick={onReset} variant="ghost">Start Over</Button>
-                  <Button onClick={onEditClick} variant="secondary">Edit</Button>
-                  <Button onClick={downloadMarkdown}>Export</Button>
-                </>
-              )}
-            </div>
+          </div>
+          <div className="flex gap-2 self-start flex-shrink-0">
+            <Button onClick={onReset} variant="ghost">Start Over</Button>
+            <Button onClick={downloadMarkdown}>Export</Button>
           </div>
         </div>
-        <div className="space-y-8">
-          <div>
-            <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-4">Color Palette</h3>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 justify-items-center p-4 bg-neutral-100 dark:bg-neutral-900/50 rounded-lg">
-              {(() => {
-                const order = ['primary','secondary','accent','background','text','link','neutralLight','neutralDark','onPrimary'];
-                const entries = order
-                  .map(k => [k, (guide.palette as any)[k]] as [string, string | undefined])
-                  .filter(([,hex]) => !!hex) as [string,string][];
-                // Include any custom roles not in the order at the end
-                const extras = Object.keys(guide.palette)
-                  .filter(k => !order.includes(k))
-                  .map(k => [k, (guide.palette as any)[k]] as [string,string]);
-                return [...entries, ...extras].map(([key, hex]) => (
-                  <ColorSwatch
-                    key={key}
-                    name={key}
-                    hex={hex}
-                    isEditable={isEditing}
-                    onChange={(h) => handleEditablePaletteChange(key as any, h as any)}
-                  />
-                ));
-              })()}
-            </div>
-          </div>
-          <EditableSection title="Mission" content={guide.mission} onChange={(c) => handleEditableGuideChange('mission', c)} isEditing={isEditing} />
-          <EditableSection title="Elevator Pitch" content={guide.elevatorPitch} onChange={(c) => handleEditableGuideChange('elevatorPitch', c)} isEditing={isEditing} />
-          <EditableSection title="Audience" content={guide.audience} onChange={(c) => handleEditableGuideChange('audience', c)} isEditing={isEditing} />
-          <EditableSection title="Tone & Voice" content={guide.tone.description} onChange={handleEditableToneChange} isEditing={isEditing} rows={8}/>
-          <div>
-            <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-2">Dos and Don'ts</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  <h4 className="font-semibold text-neutral-800 dark:text-neutral-200">Dos</h4>
-                </div>
-                <div className="space-y-2">
-                  {guide.tone.dosAndDonts.dos.map((item, i) => (
-                    isEditing ? (
-                      <textarea
-                        key={i}
-                        value={item}
-                        onChange={e => handleDosAndDontsChange('dos', i, e.target.value)}
-                        rows={2}
-                        className="w-full p-2 bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm"
-                      />
-                    ) : (
-                      <p key={i} className="p-2 bg-neutral-100 dark:bg-neutral-900 rounded-md text-sm text-neutral-600 dark:text-neutral-300">{item}</p>
-                    )
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                  <h4 className="font-semibold text-neutral-800 dark:text-neutral-200">Don'ts</h4>
-                </div>
-                <div className="space-y-2">
-                  {guide.tone.dosAndDonts.donts.map((item, i) => (
-                    isEditing ? (
-                      <textarea
-                        key={i}
-                        value={item}
-                        onChange={e => handleDosAndDontsChange('donts', i, e.target.value)}
-                        rows={2}
-                        className="w-full p-2 bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm"
-                      />
-                    ) : (
-                      <p key={i} className="p-2 bg-neutral-100 dark:bg-neutral-900 rounded-md text-sm text-neutral-600 dark:text-neutral-300">{item}</p>
-                    )
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-2">Brand Fonts</h3>
+      </div>
+
+      {/* Body grid with TOC */}
+      <div className="grid grid-cols-12 gap-6">
+        {/* Main content */}
+        <div className="col-span-12 lg:col-span-9 space-y-6">
+          <SectionBlock id="logo" title="Logo" description="Brand mark on key backgrounds.">
+            <GuideLogo logoUrl={guide.logoUrl} palette={guide.palette} />
+          </SectionBlock>
+
+          {/* Local edit toggle for palette */}
+          <SectionBlock id="palette" title="Color Palette" description="Your brand system, with accessible defaults and developer-ready tokens.">
+            <PaletteSection
+              palette={guide.palette}
+              onChange={(name: any, hex: string) => handleEditablePaletteChange(name, hex)}
+            />
+          </SectionBlock>
+
+          <SectionBlock id="mission" title="Mission" description="What you stand for and why you exist.">
+            <MissionSection value={guide.mission} onSave={(v)=>handleEditableGuideChange('mission', v)} />
+          </SectionBlock>
+
+          <SectionBlock id="pitch" title="Elevator Pitch" description="A concise, compelling description of your brand.">
+            <PitchSection value={guide.elevatorPitch} onSave={(v)=>handleEditableGuideChange('elevatorPitch', v)} />
+          </SectionBlock>
+
+          <SectionBlock id="audience" title="Audience" description="Who you’re speaking to and what they care about.">
+            <AudienceSection value={guide.audience} onSave={(v)=>handleEditableGuideChange('audience', v)} />
+          </SectionBlock>
+
+          <SectionBlock id="tone" title="Tone & Voice" description="Guidance for how your brand speaks across contexts.">
+            <ToneSection value={guide.tone.description} onSave={(v)=>handleEditableToneChange(v)} />
+          </SectionBlock>
+
+          <SectionBlock id="dosdonts" title="Dos and Don'ts" description="Practical rules to keep content consistent and on-brand.">
+            <DosDontsSection
+              dos={guide.tone.dosAndDonts.dos}
+              donts={guide.tone.dosAndDonts.donts}
+              onSave={(next)=>handleEditableGuideChange('tone', { ...guide.tone, dosAndDonts: next } as any)}
+            />
+          </SectionBlock>
+
+          <SectionBlock id="fonts" title="Brand Fonts" description="Chosen pairings with legibility previews.">
             {(guide.fontPairings && guide.fontPairings.length > 0) ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {guide.fontPairings.map((fp, idx) => {
@@ -186,7 +325,6 @@ const GuideView: React.FC<Props> = ({
                             <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-300 mb-1">Heading</label>
                             <div className="text-xs text-neutral-500 mb-1">Current: {hName}</div>
                             <div className="flex-1">
-                              {/* lightweight picker via text input substitute: user types family name */}
                               <input
                                 defaultValue={hName}
                                 onBlur={(e)=>{
@@ -231,37 +369,28 @@ const GuideView: React.FC<Props> = ({
             ) : (
               <p className="text-sm text-neutral-500 dark:text-neutral-400">No brand fonts yet. Add from suggestions below or the Font Library.</p>
             )}
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-2">Suggested Fonts</h3>
-            <SuggestedFonts brandGuide={guide} max={2} onAdd={isEditing ? ((p)=>{
+          </SectionBlock>
+
+          <SectionBlock id="suggested-fonts" title="Suggested Fonts" description="Quick picks you can add as pairings.">
+            <SuggestedFonts brandGuide={guide} max={2} onAdd={(p)=>{
               const next = [...(guide.fontPairings || [])];
               if (!next.some(x => x.heading === p.heading && x.body === p.body)) next.push({ name: p.name, heading: p.heading, body: p.body } as any);
               handleEditableGuideChange('fontPairings', next as any);
-            }) : undefined} />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-2">Taglines</h3>
-            <div className="space-y-4">
-              {guide.taglines.map((item, i) => (
-                <div key={i}>
-                  {isEditing ? (
-                    <div className="space-y-2 p-4 border border-neutral-200 dark:border-neutral-800 rounded-lg">
-                      <input type="text" value={item.tagline} onChange={e => handleTaglineChange(i, 'tagline', e.target.value)} className="w-full p-2 bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-md font-semibold"/>
-                      <textarea value={item.rationale} onChange={e => handleTaglineChange(i, 'rationale', e.target.value)} rows={2} className="w-full p-2 bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm" placeholder="Rationale..."/>
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-neutral-100 dark:bg-neutral-900 rounded-md">
-                      <p className="font-semibold text-neutral-900 dark:text-neutral-100">"{item.tagline}"</p>
-                      <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1"><span className="font-medium">Rationale:</span> {item.rationale}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+            }} />
+          </SectionBlock>
+
+          <SectionBlock id="taglines" title="Taglines" description="Potential lines and rationales.">
+            <TaglinesSection items={guide.taglines} onSave={(items)=> handleEditableGuideChange('taglines', items as any)} />
+          </SectionBlock>
         </div>
-      </Card>
+
+        {/* TOC aside */}
+        <aside className="col-span-12 lg:col-span-3 lg:sticky lg:top-20 self-start h-fit">
+          <Card>
+            <GuideTOC sections={sections} />
+          </Card>
+        </aside>
+      </div>
     </div>
   );
 };

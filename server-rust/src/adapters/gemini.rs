@@ -25,8 +25,17 @@ impl GeminiAdapter {
 
 #[async_trait]
 impl LlmAdapter for GeminiAdapter {
+    fn provider_id(&self) -> &'static str { "gemini" }
     async fn generate_json(&self, prompt: &str, schema: Option<JsonValue>, temperature: Option<f32>) -> Result<JsonValue> {
-        let url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={}", self.key);
+        self.generate_json_model("gemini-2.5-flash", prompt, schema, temperature).await
+    }
+
+    async fn generate_text(&self, prompt: &str, system: Option<&str>, temperature: Option<f32>) -> Result<String> {
+        self.generate_text_model("gemini-2.5-flash", prompt, system, temperature).await
+    }
+
+    async fn generate_json_model(&self, model: &str, prompt: &str, schema: Option<JsonValue>, temperature: Option<f32>) -> Result<JsonValue> {
+        let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", model, self.key);
         let mut generation_config = json!({"temperature": temperature.unwrap_or(0.6), "responseMimeType": "application/json"});
         if let Some(s) = schema { generation_config["responseSchema"] = s; }
         let body = json!({
@@ -41,8 +50,8 @@ impl LlmAdapter for GeminiAdapter {
         Ok(parsed)
     }
 
-    async fn generate_text(&self, prompt: &str, system: Option<&str>, temperature: Option<f32>) -> Result<String> {
-        let url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={}", self.key);
+    async fn generate_text_model(&self, model: &str, prompt: &str, system: Option<&str>, temperature: Option<f32>) -> Result<String> {
+        let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", model, self.key);
         let mut req = json!({
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": temperature.unwrap_or(0.7)}

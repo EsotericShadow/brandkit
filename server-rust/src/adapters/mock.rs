@@ -9,9 +9,9 @@ impl MockAdapter { pub fn new() -> Self { Self } }
 
 #[async_trait]
 impl LlmAdapter for MockAdapter {
+    fn provider_id(&self) -> &'static str { "mock" }
     async fn generate_json(&self, prompt: &str, schema: Option<JsonValue>, _temperature: Option<f32>) -> Result<JsonValue> {
-        // Return a minimal valid JSON matching the schema when possible, otherwise echo prompt.
-        let _ = (prompt, schema); // unused in mock
+        let _ = (prompt, schema);
         Ok(json!({
             "brandName": "MockCo",
             "industry": "Mocking",
@@ -26,5 +26,13 @@ impl LlmAdapter for MockAdapter {
     async fn generate_text(&self, prompt: &str, system: Option<&str>, _temperature: Option<f32>) -> Result<String> {
         let sys = system.unwrap_or("");
         Ok(format!("[MOCKED] {} :: {}", sys, prompt))
+    }
+
+    async fn generate_json_model(&self, _model: &str, prompt: &str, schema: Option<JsonValue>, temperature: Option<f32>) -> Result<JsonValue> {
+        self.generate_json(prompt, schema, temperature).await
+    }
+
+    async fn generate_text_model(&self, _model: &str, prompt: &str, system: Option<&str>, temperature: Option<f32>) -> Result<String> {
+        self.generate_text(prompt, system, temperature).await
     }
 }

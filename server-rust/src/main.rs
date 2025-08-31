@@ -6,6 +6,7 @@ use tracing_subscriber::{EnvFilter, fmt};
 mod models;
 mod prompts;
 mod adapters;
+mod agents;
 mod routes;
 
 use adapters::{Provider, make_adapter, AdapterDyn};
@@ -67,6 +68,7 @@ async fn run() -> anyhow::Result<()> {
         .route("/api/rewrite", post(rewrite_text))
         .route("/api/consistency", post(check_consistency))
         .route("/api/suggest-palette", post(routes::suggest_palette))
+        .route("/api/orchestrate", get(routes::ws_orchestrate))
         .with_state(state)
         .layer(cors);
 

@@ -11,7 +11,8 @@ import PaletteRamps from '../PaletteRamps_vrf';
 import RolesPreview from '../RolesPreview_vrf';
 import Spinner from '../../common/Spinner_vrf';
 import { useToast } from '../../common/ToastProvider_vrf';
-import { contrastRatio, lighten, darken, bestTextOn, adjustHue, adjustSaturation, adjustLightness, deriveExtendedRolesAesthetic, hueDistance, MIN_HUE_DELTA_DEG, hexToHsl, hslToHex, themeFromContext, deriveDarkModeVariants } from '../../../utils/color_vrf';
+import { contrastRatio, lighten, darken, bestTextOn, adjustHue, adjustSaturation, adjustLightness, deriveExtendedRolesAesthetic, hueDistance, MIN_HUE_DELTA_DEG, hexToHsl, hslToHex, themeFromContext, deriveDarkModeVariants, vibeFromTone, correctAccentForPrimary, isGreenOrBlueFamily } from '../../../utils/color_vrf';
+import { extractPrimaryFromImage } from '../../../utils/image_vrf';
 
 interface Props {
   userInputs: UserInputs;
@@ -63,6 +64,7 @@ const PaletteStep: React.FC<Props> = ({ userInputs, setUserInputs, onBack, onGen
     }
   }, []);
 
+
   const primaryKey = useMemo(() => {
     const entries = Object.keys(userInputs.palette || {});
     for (const k of entries) if (k.toLowerCase() === 'primary') return k;
@@ -74,6 +76,28 @@ const PaletteStep: React.FC<Props> = ({ userInputs, setUserInputs, onBack, onGen
     return typeof val === 'string' && !!normalizeHex(val);
   }, [primaryKey, userInputs.palette]);
 
+  // If a logo is present and primary is not set, attempt to extract a primary color from the logo
+  useEffect(() => {
+    const primaryVal = (userInputs.palette as any)?.[primaryKey];
+    const hasPrimary = typeof primaryVal === 'string' && primaryVal.trim() !== '';
+    const logo = userInputs.logoUrl;
+    if (!hasPrimary && logo && typeof window !== 'undefined') {
+      let cancelled = false;
+      (async () => {
+        try {
+          const { primaryHex, bgIsWhite } = await extractPrimaryFromImage(logo);
+          if (cancelled) return;
+          if (primaryHex) {
+            setUserInputs(prev => ({
+              ...prev,
+              palette: { ...prev.palette, [primaryKey]: primaryHex, background: (prev.palette.background || (bgIsWhite ? '#ffffff' : prev.palette.background)) as any }
+            }));
+          }
+        } catch {}
+      })();
+      return () => { cancelled = true; };
+    }
+  }, [userInputs.logoUrl, userInputs.palette, primaryKey, setUserInputs]);
 
   const handlePaletteChange = (colorName: keyof PaletteType, value: string) => {
     setUserInputs(prev => ({ ...prev, palette: { ...prev.palette, [colorName]: value } }));
@@ -87,31 +111,26 @@ const PaletteStep: React.FC<Props> = ({ userInputs, setUserInputs, onBack, onGen
       const requested: string[] = includeExtended
         ? [...CORE_ROLES, 'accent', 'secondary', 'neutralLight', 'neutralDark'] as unknown as string[]
         : [...CORE_ROLES] as unknown as string[];
-      const suggestions = await suggestPaletteWithRoles(userInputs, requested);
+      const vibe = vibeFromTone(userInputs.toneTraits || []);
+      const suggestions = await suggestPaletteWithRoles(userInputs, requested, { seed: variant, preset: vibe });
       const current = (userInputs.palette || {}) as Record<string, string>;
       const ensure = (x: any) => (typeof x === 'string' ? normalizeHex(x) : null);
 
       const bg = ensure(current.background) || ensure(suggestions.background) || '#ffffff';
       const text = ensure(current.text) || ensure(suggestions.text) || bestTextOn(bg);
-      let link = ensure(current.link) || ensure(suggestions.link) || ensure((current as any)[primaryKey]) || '#1d4ed8';
+      // Derive a tasteful accent and use it as the link base to avoid green/blue clashes
+      const base = ensure((current as any)[primaryKey]) || '#1d4ed8';
+      const derivedForLink = deriveExtendedRolesAesthetic(base, bg, { toneTraits: userInputs.toneTraits || [], industry: userInputs.industry || '', variant });
+      let link = ensure(current.link) || derivedForLink.accent;
 
-      // Quality tuning for link: distinct yet branded and accessible
-      const primaryNorm = ensure((current as any)[primaryKey]) || null;
-      if (primaryNorm) {
-        // Start from primary, increase saturation a bit and darken/lighten based on bg
-        const bgIsLight = (contrastRatio('#000', bg) ?? 0) > (contrastRatio('#fff', bg) ?? 0);
-        link = adjustSaturation(primaryNorm, 1.15);
-        link = bgIsLight ? adjustLightness(link, -0.12) : adjustLightness(link, 0.12);
-        // Subtle hue offset to avoid "same color" feel
-        link = adjustHue(link, -8);
-      }
-      // Ensure accessibility
+      // Ensure accessibility for link on bg
       let safety = 0;
-      while ((contrastRatio(link, bg) ?? 0) < 4.5 && safety < 6) {
+      while ((contrastRatio(link, bg) ?? 0) < 4.5 && safety < 8) {
         link = bg.toLowerCase() === '#ffffff' ? darken(link, 0.08) : lighten(link, 0.08);
         safety++;
       }
-      // If still identical to primary, nudge further
+      // If identical to primary, nudge darker for distinction
+      const primaryNorm = ensure((current as any)[primaryKey]) || null;
       if (primaryNorm && link.toLowerCase() === primaryNorm.toLowerCase()) {
         link = darken(link, 0.15);
       }
@@ -128,14 +147,36 @@ const PaletteStep: React.FC<Props> = ({ userInputs, setUserInputs, onBack, onGen
       // Extended roles (optional)
       if (includeExtended) {
         const base = ensure((current as any)[primaryKey]) || '#1d4ed8';
-        // Always derive accent/secondary/neutrals using aesthetic logic with a hidden variant for diversity
-        const derived = deriveExtendedRolesAesthetic(base, bg, { toneTraits: userInputs.toneTraits || [], industry: userInputs.industry || '', variant });
-        const { accent, secondary, neutralLight, neutralDark } = derived;
+        // Prefer LLM suggestions for extended roles; fall back to deterministic derivation if missing
+        const sAccent = ensure((suggestions as any).accent);
+        const sSecondary = ensure((suggestions as any).secondary);
+        const sNeutralLight = ensure((suggestions as any).neutralLight);
+        const sNeutralDark = ensure((suggestions as any).neutralDark);
 
-        if (!current.accent) merged.accent = accent;
-        if (!current.secondary) merged.secondary = secondary;
-        if (!current.neutralLight) merged.neutralLight = neutralLight;
-        if (!current.neutralDark) merged.neutralDark = neutralDark;
+        const derived = deriveExtendedRolesAesthetic(base, bg, { toneTraits: userInputs.toneTraits || [], industry: userInputs.industry || '', variant });
+        const accRaw = sAccent || derived.accent;
+        const chosenAccent = correctAccentForPrimary(base, accRaw, userInputs.toneTraits || []);
+        const chosenSecondary = sSecondary || derived.secondary;
+        const chosenNeutralLight = sNeutralLight || derived.neutralLight;
+        const chosenNeutralDark = sNeutralDark || derived.neutralDark;
+        // Align link with accent to avoid green/blue clash
+        {
+          let linkFromAccent = chosenAccent;
+          let safetyLink = 0;
+          while ((contrastRatio(linkFromAccent, bg) ?? 0) < 4.5 && safetyLink < 8) {
+            linkFromAccent = bg.toLowerCase() === '#ffffff' ? darken(linkFromAccent, 0.08) : lighten(linkFromAccent, 0.08);
+            safetyLink++;
+          }
+          const existingLink = ensure(current.link);
+          if (!existingLink || isGreenOrBlueFamily(existingLink)) {
+            merged.link = linkFromAccent;
+          }
+        }
+
+        if (!current.accent) merged.accent = chosenAccent;
+        if (!current.secondary) merged.secondary = chosenSecondary;
+        if (!current.neutralLight) merged.neutralLight = chosenNeutralLight;
+        if (!current.neutralDark) merged.neutralDark = chosenNeutralDark;
       }
 
       setUserInputs(prev => ({ ...prev, palette: merged } as any));
@@ -315,26 +356,24 @@ const PaletteStep: React.FC<Props> = ({ userInputs, setUserInputs, onBack, onGen
     // Ensure very strong text contrast on background (already high via bestTextOn)
     let text = bestTextOn(background);
 
-    // Link: derived from primary with adjust and contrast enforced
-    let link = adjustSaturation(primary, 1.15);
-    const bgIsLight = (contrastRatio('#000', background) ?? 0) > (contrastRatio('#fff', background) ?? 0);
-    link = bgIsLight ? adjustLightness(link, -0.12) : adjustLightness(link, 0.12);
-    link = adjustHue(link, -8);
-    // Aim to improve link contrast target gradually with variant
-    const linkTarget = Math.min(9.0, 4.5 + 0.5 * ((v % 5) + 1));
-    let safety = 0;
-    while (getRatio(link, background) < linkTarget && safety < 12) {
-      link = bgIsLight ? darken(link, 0.06) : lighten(link, 0.06);
-      safety++;
-    }
-    if (link.toLowerCase() === primary.toLowerCase()) link = darken(link, 0.15);
-
     // Extended roles with new variant
     let { accent, secondary, neutralLight, neutralDark } = deriveExtendedRolesAesthetic(primary, background, {
       toneTraits: userInputs.toneTraits || [],
       industry: userInputs.industry || '',
       variant: v,
     });
+
+    // Use accent as link to avoid green/blue clash and ensure distinction
+    let link = accent;
+    const linkTarget = Math.min(9.0, 4.5 + 0.5 * ((v % 5) + 1));
+    let safety = 0;
+    while (getRatio(link, background) < linkTarget && safety < 12) {
+      // darken on light bg, lighten on dark bg
+      const bgIsLight = (contrastRatio('#000', background) ?? 0) > (contrastRatio('#fff', background) ?? 0);
+      link = bgIsLight ? darken(link, 0.06) : lighten(link, 0.06);
+      safety++;
+    }
+    if (link.toLowerCase() === primary.toLowerCase()) link = darken(link, 0.15);
 
     // Contrast optimization pass to increase key check scores
     // 1) Primary on neutralLight: try to raise toward ≥ 4.5 and climb with variants

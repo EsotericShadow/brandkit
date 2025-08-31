@@ -5,8 +5,11 @@ const PROVIDER = 'gemini';
 
 // Configurable API base and robustness controls via Vite env
 const VITE = (import.meta as any).env || {};
+const IS_TEST = !!(VITE && (VITE as any).VITEST);
 const API_BASE: string = (VITE.VITE_API_BASE || '').toString().replace(/\/$/, '');
-const DEFAULT_TIMEOUT_MS: number = Number(VITE.VITE_AI_TIMEOUT_MS || 60000);
+// In tests, use a very short fallback timeout so generateGuide doesn't hang waiting for the
+// orchestration event. This is validated by vitest runs.
+const DEFAULT_TIMEOUT_MS: number = Number(VITE.VITE_AI_TIMEOUT_MS || (IS_TEST ? 25 : 60000));
 const DEFAULT_RETRIES: number = Number(VITE.VITE_API_RETRIES || 2);
 
 function makeUrl(path: string): string {
@@ -58,7 +61,33 @@ async function postJson<T>(path: string, body: any, opts?: { timeoutMs?: number;
 }
 
 export async function generateGuide(inputs: GenerateInputs): Promise<BrandGuide> {
-  return postJson<BrandGuide>('/api/generate-guide', { provider: PROVIDER, inputs });
+  // Trigger live orchestration overlay (WebSocket-based)
+  try {
+    window.dispatchEvent(new CustomEvent('orchestration:start', { detail: { provider: PROVIDER, inputs } }));
+  } catch {}
+  // Wait for final via event, with timeout fallback to HTTP
+  return new Promise<BrandGuide>((resolve, reject) => {
+    let done = false;
+    const onFinal = (e: any) => {
+      if (done) return;
+      done = true;
+      try { window.removeEventListener('orchestration:final' as any, onFinal as any); } catch {}
+      resolve(e.detail as BrandGuide);
+    };
+    window.addEventListener('orchestration:final' as any, onFinal as any, { once: true } as any);
+    // Fallback: timeout then use HTTP endpoint
+    const t = setTimeout(async () => {
+      if (done) return;
+      try {
+        const viaHttp = await postJson<BrandGuide>('/api/generate-guide', { provider: PROVIDER, inputs });
+        done = true; resolve(viaHttp);
+      } catch (err) {
+        done = true; reject(err);
+      } finally {
+        try { window.removeEventListener('orchestration:final' as any, onFinal as any); } catch {}
+      }
+    }, DEFAULT_TIMEOUT_MS);
+  });
 }
 
 export interface RewriteOptions {
@@ -94,7 +123,22 @@ export const DEFAULT_PALETTE_ROLES = [
   'link',
 ] as const;
 
-export async function suggestPaletteWithRoles(inputs: GenerateInputs, roles: readonly string[] = DEFAULT_PALETTE_ROLES): Promise<Record<string, string>> {
-  const qs = `roles=${encodeURIComponent(roles.join(','))}`;
-  return postJson<Record<string, string>>(`/api/suggest-palette?${qs}`, inputs);
+export type PaletteSuggestOptions = {
+  seed?: number;
+  preset?: 'subtle' | 'balanced' | 'bold';
+  model?: string; // e.g., 'gemini:gemini-2.5-flash' or 'openai:gpt-4o-mini'
+};
+
+export async function suggestPaletteWithRoles(
+  inputs: GenerateInputs,
+  roles: readonly string[] = DEFAULT_PALETTE_ROLES,
+  opts?: PaletteSuggestOptions,
+): Promise<Record<string, string>> {
+  const params = new URLSearchParams();
+  if (roles && roles.length) params.set('roles', roles.join(','));
+  if (typeof opts?.seed === 'number') params.set('seed', String(opts.seed));
+  if (opts?.preset) params.set('preset', opts.preset);
+  if (opts?.model) params.set('model', opts.model);
+  const path = `/api/suggest-palette${params.toString() ? `?${params.toString()}` : ''}`;
+  return postJson<Record<string, string>>(path, inputs);
 }

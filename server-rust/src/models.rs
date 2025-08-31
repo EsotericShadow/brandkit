@@ -50,6 +50,7 @@ pub struct ConsistencyReport { pub score: i32, pub feedback: String, pub suggest
 pub struct GenerateGuideRequest { pub provider: Option<String>, pub inputs: UserInputs }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(non_snake_case)]
 pub struct RewriteOptions { pub aggressiveness: Option<i32>, pub keepLength: Option<bool>, pub preserveStructure: Option<bool>, pub notes: Option<String> }
 
 #[allow(non_snake_case)]

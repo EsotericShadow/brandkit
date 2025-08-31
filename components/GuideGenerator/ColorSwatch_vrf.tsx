@@ -1,5 +1,6 @@
 import React from 'react';
 import { useToast } from '../common/ToastProvider_vrf';
+import { bestTextOn } from '../../utils/color_vrf';
 
 const isValidHex = (v: string) => /^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(v.trim());
 const normalizeHex = (v: string): string | null => {
@@ -17,7 +18,9 @@ const ColorSwatch: React.FC<{ name: string; hex: string; isEditable?: boolean; o
   const safeHex = typeof hex === 'string' ? hex : '';
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className="w-24 h-24 rounded-lg shadow-inner border border-neutral-200 dark:border-neutral-800 relative" style={{ backgroundColor: isValidHex(safeHex) ? normalizeHex(safeHex)! : '#000000' }}>
+      <div className="w-24 h-24 rounded-lg shadow-inner border border-neutral-200 dark:border-neutral-800 relative flex items-center justify-center" style={{ backgroundColor: isValidHex(safeHex) ? normalizeHex(safeHex)! : '#000000' }}>
+        {/* Sample text preview for readability */}
+        <span className="text-sm font-semibold select-none" style={{ color: bestTextOn(isValidHex(safeHex) ? normalizeHex(safeHex)! : '#000000') }}>Aa</span>
         {isEditable && (
           <input aria-label={`${label} color picker`} type="color" value={(isValidHex(safeHex) ? normalizeHex(safeHex)! : '#000000')} onChange={e => { setErr(null); onChange?.(e.target.value); }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
         )}

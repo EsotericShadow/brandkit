@@ -4,8 +4,13 @@ pub const BANNED: &[&str] = &[
   "paradigm shift","empower","unlock","streamline","optimize",
   "best-in-class","revolutionary","groundbreaking","dynamic",
   "core competency","value-added","solution","ecosystem",
+  // Extra formality/buzz
+  "mission-critical","state-of-the-art","best in class","scalable","bespoke",
+  // Overused metaphors
+  "lighthouse",
 ];
 
+#[allow(dead_code)]
 pub fn build_guide_prompt(inputs: &crate::models::UserInputs) -> String {
     let tagline_prompt = if inputs.hasExistingTagline.unwrap_or(false) {
         format!(
@@ -79,6 +84,7 @@ pub fn build_consistency_prompt(text: &str, guide: &crate::models::BrandGuide) -
     )
 }
 
+#[allow(dead_code)]
 pub fn build_palette_prompt(inputs: &crate::models::UserInputs) -> String {
     let provided = if inputs.palette.is_empty() {
         "none".to_string()
@@ -93,7 +99,7 @@ pub fn build_palette_prompt(inputs: &crate::models::UserInputs) -> String {
     let tone = inputs.toneTraits.join(", ");
     let industry = &inputs.industry;
     format!(
-        "You are a senior brand designer and color theorist. Propose a cohesive, accessible color palette grounded in color theory.\n\nRequirements:\n- Use split-complementary or triadic relationships for secondary and accent; avoid analogous picks that are too close to primary.\n- Enforce a minimum hue separation of 40° between primary and both secondary and accent, and between secondary and accent.\n- Prefer a neutral background (unless provided), and ensure WCAG AA contrast (≥ 4.5:1) for text and links on the background.\n- Make the link distinct from primary (small hue offset, lightness adjustment), not identical.\n- Preserve any user-provided roles exactly; only fill missing ones.\n\nContext:\nBrand: {}\nBrand tone traits: {}\nIndustry: {}\nUser-provided colors (keep as-is): {}\n\nOutput STRICT JSON with keys: primary, secondary, accent, neutralLight, neutralDark. Values are hex strings like #RRGGBB.",
+        "You are a senior brand designer. Propose a cohesive brand-system palette anchored to the primary color (if provided).\n\nPrinciples:\n- Derive Secondary as an adjacent/analog hue (±12–28°) to the primary with a different lightness/saturation for hierarchy.\n- Derive Accent as a tasteful counterpoint: pick a distant hue family (not a harsh complement). Tune saturation by tone (muted for professional/minimal; richer for bold/playful).\n- Neutrals should be slightly tinted toward the primary hue (very low saturation) for cohesion, not pure grayscale, unless industry requires strict neutrality.\n- Background should be near-white (or near-black in dark mode) with an optional subtle tint.\n- Text must pass WCAG AA (≥ 4.5:1) on background; onPrimary must pass AA on primary (choose white/black accordingly).\n- Links should be related to primary but clearly distinct in hue/lightness; ensure AA contrast.\n- Preserve any user-provided roles exactly; only fill missing ones.\n\nContext:\nBrand: {}\nTone traits: {}\nIndustry: {}\nUser-provided colors (keep as-is): {}\n\nOutput STRICT JSON with keys: primary, secondary, accent, neutralLight, neutralDark. Values are hex strings like #RRGGBB.",
         inputs.brandName, tone, industry, provided
     )
 }
@@ -117,8 +123,55 @@ pub fn build_palette_prompt_with_roles(inputs: &crate::models::UserInputs, roles
         roles.join(", ")
     };
     format!(
-        "You are a senior brand designer and color theorist. Propose a cohesive, accessible palette following these rules:\n- Use split-complementary or triadic relationships for secondary and accent; avoid picks within 30° of primary unless explicitly requested.\n- Ensure ≥ 40° hue separation between primary and both secondary and accent, and between secondary and accent.\n- Prefer neutral backgrounds unless provided; ensure WCAG AA (≥ 4.5:1) for text and links on background.\n- Make link visually distinct from primary (small hue offset, adjust lightness/saturation).\n- Preserve any user-provided roles exactly. Only output the requested keys and nothing else.\n\nBrand: {}\nBrand tone traits: {}\nIndustry: {}\nUser-provided colors (keep as-is): {}\n\nOutput STRICT JSON with keys: {}. Values are hex strings like #RRGGBB.",
+        "You are a senior brand designer. Propose a brand-system palette grounded in the primary color (if provided).\n\nDesign rules:\n- Secondary: adjacent/analog hue (±12–28° from primary), adjust lightness/saturation for hierarchy and readability.\n- Accent: pick a distant but harmonious hue family (not a harsh complement). Saturation depends on tone (muted for professional; richer for bold).\n- Neutrals: use very low-sat tints of the primary hue for neutralLight/neutralDark; prefer true gray only for conservative industries.\n- Background/Text: high accessibility (AA ≥ 4.5:1). Background near-white by default; text chosen for contrast.\n- Link: related to primary yet distinct (small hue offset + lightness/saturation tweak). Must pass AA on background.\n- Respect all user-provided roles exactly. Only output the requested keys and nothing else.\n\nBrand: {}\nTone traits: {}\nIndustry: {}\nUser-provided colors (keep as-is): {}\n\nOutput STRICT JSON with keys: {}. Values are hex strings like #RRGGBB.",
         inputs.brandName, tone, industry, provided, keys
+    )
+}
+
+// Seeded variant that includes a base (fallback) palette and explicit diversity controls
+pub fn build_palette_prompt_with_roles_seeded(
+    inputs: &crate::models::UserInputs,
+    roles: &[String],
+    base: &std::collections::HashMap<String, String>,
+    seed: u64,
+    preset: Option<&str>,
+) -> String {
+    let provided = if inputs.palette.is_empty() {
+        "none".to_string()
+    } else {
+        let list: Vec<String> = inputs
+            .palette
+            .iter()
+            .map(|(k, v)| format!("{}: {}", k, v))
+            .collect();
+        list.join("; ")
+    };
+    let tone = inputs.toneTraits.join(", ");
+    let industry = &inputs.industry;
+    let keys = if roles.is_empty() {
+        "primary, secondary, accent, background, text, link".to_string()
+    } else {
+        roles.join(", ")
+    };
+
+    // Serialize base palette for context
+    let mut base_list: Vec<String> = Vec::new();
+    for (k, v) in base.iter() { base_list.push(format!("{}: {}", k, v)); }
+    base_list.sort();
+    let base_serialized = if base_list.is_empty() { "none".to_string() } else { base_list.join("; ") };
+
+    let preset_lc = preset.unwrap_or("balanced").to_lowercase();
+
+    format!(
+        "You are a senior brand designer. Create a brand-system palette grounded in the primary color (if provided), using the BASE palette below as a guardrail.\n\nDesign rules (bounded adjustments):\n- Secondary: adjacent/analog hue (±12–28° from primary), tweak saturation/lightness for hierarchy and usability.\n- Accent: choose a distant but harmonious hue family per industry/tone (avoid harsh complements). Saturation depends on preset: subtle = lower, balanced = moderate, bold = higher.\n- Neutrals: very low-saturation tints toward the primary hue (use true gray only for conservative contexts).\n- Background/Text: must meet WCAG AA ≥ 4.5:1 for text on background.\n- Link: related to primary yet distinct (small hue offset + luma tweak); must pass AA on background.\n- Preserve any user-provided roles exactly.\n- Avoid exact duplicates across roles (e.g., make link not identical to primary).\n- Maintain minimum hue separation of ~40° between primary, secondary, and accent when possible.\n\nVariation controls:\n- Seed: {seed}. Use it to pick among equally valid options so different seeds yield different results, while staying within the above bounds.\n- Preset: {preset}. Allowed values: subtle | balanced | bold. Use it to scale saturation and lightness for the overall vibe.\n\nContext:\nBrand: {brand}\nTone traits: {tone}\nIndustry: {industry}\nUser-provided colors (keep as-is): {provided}\nBASE guardrail palette (use as starting point; apply small deltas where appropriate): {base_serialized}\n\nOutput STRICT JSON with keys: {keys}. Values are hex strings like #RRGGBB. Do not include comments or markdown.",
+        seed = seed,
+        preset = preset_lc,
+        brand = inputs.brandName,
+        tone = tone,
+        industry = industry,
+        provided = provided,
+        base_serialized = base_serialized,
+        keys = keys,
     )
 }
 

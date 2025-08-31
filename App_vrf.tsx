@@ -8,6 +8,7 @@ import PaletteOnly from './components/PaletteOnly_vrf';
 import type { AppState, BrandGuide, Palette } from './types';
 import { AppView } from './types';
 import { useToast } from './components/common/ToastProvider_vrf';
+import OrchestrationTerminal from './components/OrchestrationTerminal_vrf';
 
 const initialState: AppState = {
   view: AppView.GUIDE_GENERATOR,
@@ -136,6 +137,8 @@ const App: React.FC = () => {
     <div className="md:flex min-h-screen">
       <Sidebar activeView={state.view} setView={setView} isGuideGenerated={state.isGenerated} />
       <main className="flex-1 p-6">{content}</main>
+      {/* Live team orchestration mini-terminal (pops up when active) */}
+      <OrchestrationTerminal />
     </div>
   );
 };
